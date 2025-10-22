@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Consulta de Usuarios - Biblioteca</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>body{background:#f8f9fa}.card-sm{border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,.03)}.user-info{color:#f8f9fa}</style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+  <div class="container"><a class="navbar-brand" href="/">Biblioteca</a><button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item" sec:authorize="hasAuthority('ROLE_ADMIN')"><a class="nav-link" href="/usuarios">Usuarios</a></li>
+        <li class="nav-item"><a class="nav-link" href="/libros">Libros</a></li>
+        <li class="nav-item"><a class="nav-link" href="/prestamos">Préstamos</a></li>
+        <li class="nav-item" sec:authorize="hasAuthority('ROLE_ADMIN')"><a class="nav-link" href="/consulta-usuarios">Consulta</a></li>
+        <li class="nav-item"><span class="user-info">Usuario: <span sec:authentication="name">Usuario</span> <span sec:authorize="hasAuthority('ROLE_ADMIN')">(ADMIN)</span><span sec:authorize="hasAuthority('ROLE_CLIENTE')">(CLIENTE)</span></span></li>
+        <li class="nav-item"><form th:action="@{/logout}" method="post" style="display:inline"><button type="submit" class="btn btn-outline-light btn-sm ms-2">Salir</button></form></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div><h5 class="mb-0">Consulta de Usuarios</h5><small class="text-muted">Ver préstamos activos</small></div>
+    <button id="btnAct" class="btn btn-outline-primary btn-sm">Actualizar</button>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-3"><div class="card-sm p-3 text-center"><h4 id="totU">0</h4><small class="text-muted">Usuarios</small></div></div>
+    <div class="col-3"><div class="card-sm p-3 text-center"><h4 id="conP">0</h4><small class="text-muted">Con préstamos</small></div></div>
+    <div class="col-3"><div class="card-sm p-3 text-center"><h4 id="venc" class="text-danger">0</h4><small class="text-muted">Vencidos</small></div></div>
+    <div class="col-3"><div class="card-sm p-3 text-center"><h4 id="totP">0</h4><small class="text-muted">Total préstamos</small></div></div>
+  </div>
+
+  <div class="card-sm p-3 mb-3">
+    <div class="d-flex gap-2 mb-3">
+      <div class="flex-grow-1 input-group"><span class="input-group-text">🔎</span><input id="filtro" class="form-control" placeholder="Buscar por nombre, cédula o correo..."></div>
+      <span id="cont" class="badge bg-light text-dark p-2">0 resultados</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light"><tr><th>Usuario</th><th>Contacto</th><th class="text-center">Préstamos</th><th class="text-center">Estado</th><th class="text-center">Acción</th></tr></thead>
+        <tbody id="tabla"><tr id="loading"><td colspan="5" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><div class="mt-2 text-muted">Cargando información de usuarios...</div></td></tr></tbody>
+      </table>
+    </div>
+    <div id="noMsg" class="text-center py-4" style="display:none">No se encontraron usuarios</div>
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <span id="pageInfo">Mostrando 0 de 0</span>
+      <div><button id="prevBtn" class="btn btn-sm btn-outline-secondary">Anterior</button> <span id="pageNum">Página 1 de 1</span> <button id="nextBtn" class="btn btn-sm btn-outline-secondary">Siguiente</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">Préstamos de <span id="nombre"></span></h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body" id="body"></div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+</div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const $ = id => document.getElementById(id), m = new bootstrap.Modal($('modal')), fmt = s => new Date(s).toLocaleDateString('es-ES');
+  let all = [], filtered = [], page = 1, perPage = 10;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    load(); $('filtro').addEventListener('input', filter); $('btnAct').addEventListener('click', load);
+    $('tabla').addEventListener('click', e => {const btn = e.target.closest('[data-i]'); if(btn) show(btn.dataset.i);});
+    $('prevBtn').addEventListener('click', () => { if (page > 1) { page--; render(); } });
+    $('nextBtn').addEventListener('click', () => { if (page < Math.ceil(filtered.length / perPage)) { page++; render(); } });
+  });
+
+  async function load() {
+    $('loading').style.display = 'table-row'; $('noMsg').style.display = 'none';
+    try {
+      const r = await fetch('/api/usuarios/con-prestamos'); if(!r.ok) throw r;
+      all = await r.json(); filtered = all; page = 1; render(); stats(all);
+    } catch(e) { $('tabla').innerHTML = `<tr><td colspan="5" class="text-center py-4"><div class="text-danger">Error al cargar datos. Intente nuevamente.</div></td></tr>`; }
+    finally { $('loading').style.display = 'none'; }
+  }
+
+  function render() {
+    const t = $('tabla'), c = $('cont');
+    const start = (page - 1) * perPage, end = start + perPage, pageData = filtered.slice(start, end);
+    const total = filtered.length, totalPages = Math.ceil(total / perPage);
+    
+    if(!pageData.length) {t.innerHTML = ''; $('noMsg').style.display = 'block'; c.textContent = '0 resultados'; $('pageInfo').textContent = 'Mostrando 0 de 0'; $('pageNum').textContent = 'Página 1 de 1'; $('prevBtn').disabled = true; $('nextBtn').disabled = true; return;}
+    
+    $('noMsg').style.display = 'none'; c.textContent = `${total} resultado(s)`;
+    t.innerHTML = pageData.map((u,i) => {
+      const realIdx = start + i;
+      const v = u.prestamos.filter(p => p.diasRestantes < 0).length;
+      const pv = u.prestamos.filter(p => p.diasRestantes >= 0 && p.diasRestantes <= 3).length;
+      const st = v ? `<span class="badge bg-danger">${v} venc.</span>` : pv ? `<span class="badge bg-warning">${pv} por vencer</span>` : (u.prestamos.length ? `<span class="badge bg-success">Al día</span>` : `<span class="badge bg-secondary">Sin préstamos</span>`);
+      return `<tr><td><strong>${u.nombreCompleto}</strong><div class="text-muted small">ID: ${u.identificacion}</div></td><td>${u.telefonoMovil||'-'}<div class="text-muted small">${u.correoElectronico||'-'}</div></td><td class="text-center"><span class="badge bg-primary">${u.prestamos.length}</span></td><td class="text-center">${st}</td><td class="text-center"><button class="btn btn-sm btn-outline-primary" data-i="${realIdx}" title="Ver préstamos" aria-label="Ver préstamos"><i class="bi bi-eye"></i></button></td></tr>`;
+    }).join('');
+    
+    $('pageInfo').textContent = `Mostrando ${start + 1}-${Math.min(end, total)} de ${total}`;
+    $('pageNum').textContent = `Página ${page} de ${totalPages || 1}`;
+    $('prevBtn').disabled = page <= 1; $('nextBtn').disabled = page >= totalPages;
+  }
+
+  function show(idx) {
+    const u = filtered[idx]; if(!u) return;
+    $('nombre').textContent = u.nombreCompleto;
+    $('body').innerHTML = u.prestamos.length === 0 ? `<div class="text-center text-muted py-4">Sin préstamos activos</div>` :
+      u.prestamos.map(p => {
+        const d = p.diasRestantes, cls = d < 0 ? 'text-danger' : d <= 3 ? 'text-warning' : 'text-success';
+        const txt = d < 0 ? `Vencido hace ${Math.abs(d)} día(s)` : `${d} día(s) restante(s)`;
+        return `<div class="card mb-2"><div class="card-body d-flex justify-content-between"><div><strong>${p.tituloLibro}</strong><div class="text-muted small">Autor: ${p.autorLibro}</div><div class="text-muted small">Prest: ${fmt(p.fechaPrestamo)} · Dev: ${fmt(p.fechaDevolucion)}</div>${p.observacion ? `<div class="text-muted small">Obs: ${p.observacion}</div>` : ''}</div><div class="text-end ${cls}"><div class="small">${txt}</div></div></div></div>`;
+      }).join('');
+    m.show();
+  }
+
+  function filter() {
+    const q = $('filtro').value.trim().toLowerCase();
+    filtered = q ? all.filter(u => (u.nombreCompleto + u.identificacion + (u.correoElectronico || '')).toLowerCase().includes(q)) : all;
+    page = 1; render();
+  }
+
+  function stats(list) {
+    const s = list.reduce((acc, u) => {
+      acc.total++; acc.con += u.prestamos.length > 0 ? 1 : 0; acc.prest += u.prestamos.length;
+      acc.venc += u.prestamos.filter(p => p.diasRestantes < 0).length; return acc;
+    }, {total: 0, con: 0, prest: 0, venc: 0});
+    $('totU').textContent = s.total; $('conP').textContent = s.con; $('totP').textContent = s.prest; $('venc').textContent = s.venc;
+  }
+</script>
+</body>
+</html>
