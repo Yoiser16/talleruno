@@ -1,151 +1,439 @@
 <!DOCTYPE html>
-<html lang="es" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="_csrf" th:content="${_csrf.token}"/><meta name="_csrf_header" th:content="${_csrf.headerName}"/>
-  <title>Gestión de Préstamos - Biblioteca</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <style>body{background:#f8f9fa}.user-info{color:#f8f9fa}</style>
-</head>
-<body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container">
-    <a class="navbar-brand" href="/">Biblioteca</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav ms-auto">
-        <li class="nav-item" sec:authorize="hasAuthority('ROLE_ADMIN')"><a class="nav-link" href="/usuarios">Usuarios</a></li>
-        <li class="nav-item"><a class="nav-link" href="/libros">Libros</a></li>
-        <li class="nav-item"><a class="nav-link" href="/prestamos">Préstamos</a></li>
-        <li class="nav-item" sec:authorize="hasAuthority('ROLE_ADMIN')"><a class="nav-link" href="/consulta-usuarios">Consulta</a></li>
-        <li class="nav-item"><span class="user-info">Usuario: <span sec:authentication="name">Usuario</span> <span sec:authorize="hasAuthority('ROLE_ADMIN')">(ADMIN)</span><span sec:authorize="hasAuthority('ROLE_CLIENTE')">(CLIENTE)</span></span></li>
-        <li class="nav-item"><form th:action="@{/logout}" method="post" style="display:inline"><button type="submit" class="btn btn-outline-light btn-sm ms-2">Salir</button></form></li>
-      </ul>
-    </div>
-  </div>
-</nav>
+<html
+  lang="es"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="_csrf" th:content="${_csrf.token}" />
+    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+    <title>Gestión de Préstamos - Biblioteca</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background: #f8f9fa;
+      }
+      .user-info {
+        color: #f8f9fa;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">Biblioteca</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item" sec:authorize="hasAuthority('ROLE_ADMIN')">
+              <a class="nav-link" href="/usuarios">Usuarios</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/libros">Libros</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/prestamos">Préstamos</a>
+            </li>
+            <li class="nav-item" sec:authorize="hasAuthority('ROLE_ADMIN')">
+              <a class="nav-link" href="/consulta-usuarios">Consulta</a>
+            </li>
+            <li class="nav-item">
+              <span class="user-info"
+                >Usuario: <span sec:authentication="name">Usuario</span>
+                <span sec:authorize="hasAuthority('ROLE_ADMIN')">(ADMIN)</span
+                ><span sec:authorize="hasAuthority('ROLE_CLIENTE')"
+                  >(CLIENTE)</span
+                ></span
+              >
+            </li>
+            <li class="nav-item">
+              <form
+                th:action="@{/logout}"
+                method="post"
+                style="display: inline"
+              >
+                <button type="submit" class="btn btn-outline-light btn-sm ms-2">
+                  Salir
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
 
-<div class="container my-4">
-  <h4 class="mb-3">Gestión de Préstamos</h4>
-  <div class="card mb-3" sec:authorize="hasAnyAuthority('ROLE_ADMIN','ROLE_CLIENTE')">
-    <div class="card-body">
-      <form id="prestamoForm" class="row g-2">
-        <div class="col-12 col-md-6"><select id="usuarioSelect" class="form-select" required><option value="">Cargando usuarios...</option></select></div>
-        <div class="col-12 col-md-6"><select id="libroSelect" class="form-select" required><option value="">Cargando libros...</option></select></div>
-        <div class="col-12 col-md-6"><input id="fechaDevolucion" type="date" class="form-control" required></div>
-        <div class="col-12 col-md-6"><textarea id="observacion" class="form-control" rows="1" placeholder="Observación (opcional)"></textarea></div>
-        <div class="col-12 text-end"><button class="btn btn-primary" title="Crear préstamo"><i class="bi bi-save"></i></button></div>
-      </form>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <strong>Lista de Préstamos</strong>
-      <button id="btnRefresh" class="btn btn-success btn-sm">Actualizar</button>
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-striped mb-0">
-          <thead class="table-light"><tr><th>ID</th><th>Usuario</th><th>Libro</th><th>Préstamo</th><th>Devolución</th><th>Días</th><th>Estado</th><th>Obs</th><th>Acción</th></tr></thead>
-          <tbody id="prestamosTableBody"></tbody>
-        </table>
+    <div class="container my-4">
+      <h4 class="mb-3">Gestión de Préstamos</h4>
+      <div
+        class="card mb-3"
+        sec:authorize="hasAnyAuthority('ROLE_ADMIN','ROLE_CLIENTE')"
+      >
+        <div class="card-body">
+          <form id="prestamoForm" class="row g-2">
+            <div class="col-12 col-md-6">
+              <select id="usuarioSelect" class="form-select" required>
+                <option value="">Cargando usuarios...</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <select id="libroSelect" class="form-select" required>
+                <option value="">Cargando libros...</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-6">
+              <input
+                id="fechaDevolucion"
+                type="date"
+                class="form-control"
+                required
+              />
+            </div>
+            <div class="col-12 col-md-6">
+              <textarea
+                id="observacion"
+                class="form-control"
+                rows="1"
+                placeholder="Observación (opcional)"
+              ></textarea>
+            </div>
+            <div class="col-12 text-end">
+              <button class="btn btn-primary" title="Crear préstamo">
+                <i class="bi bi-save"></i>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="card">
+        <div
+          class="card-header d-flex justify-content-between align-items-center"
+        >
+          <strong>Lista de Préstamos</strong>
+          <button id="btnRefresh" class="btn btn-success btn-sm">
+            Actualizar
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-striped mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Usuario</th>
+                  <th>Libro</th>
+                  <th>Préstamo</th>
+                  <th>Devolución</th>
+                  <th>Días</th>
+                  <th>Estado</th>
+                  <th>Obs</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="prestamosTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div
+          class="card-footer d-flex justify-content-between align-items-center"
+        >
+          <span class="text-muted small" id="pageInfo">Mostrando 0 de 0</span>
+          <div>
+            <button
+              id="prevBtn"
+              class="btn btn-sm btn-outline-secondary"
+              disabled
+            >
+              Anterior
+            </button>
+            <span class="mx-2" id="pageNum">Página 1</span>
+            <button
+              id="nextBtn"
+              class="btn btn-sm btn-outline-secondary"
+              disabled
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="card-footer d-flex justify-content-between align-items-center">
-      <span class="text-muted small" id="pageInfo">Mostrando 0 de 0</span>
-      <div>
-        <button id="prevBtn" class="btn btn-sm btn-outline-secondary" disabled>Anterior</button>
-        <span class="mx-2" id="pageNum">Página 1</span>
-        <button id="nextBtn" class="btn btn-sm btn-outline-secondary" disabled>Siguiente</button>
+
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirmar Eliminación</h5>
+            <button class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            ¿Está seguro que desea eliminar este préstamo?
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+              Cancelar</button
+            ><button id="confirmDelete" class="btn btn-danger btn-sm">
+              Eliminar
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
-<div class="modal fade" id="deleteModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
-  <div class="modal-header"><h5 class="modal-title">Confirmar Eliminación</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
-  <div class="modal-body">¿Está seguro que desea eliminar este préstamo?</div>
-  <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button><button id="confirmDelete" class="btn btn-danger btn-sm">Eliminar</button></div>
-</div></div></div>
+    <div class="modal fade" id="msgModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="msgModalTitle">Mensaje</h5>
+            <button class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" id="msgModalBody"></div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" data-bs-dismiss="modal">
+              Aceptar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<div class="modal fade" id="msgModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
-  <div class="modal-header"><h5 class="modal-title" id="msgModalTitle">Mensaje</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
-  <div class="modal-body" id="msgModalBody"></div>
-  <div class="modal-footer"><button class="btn btn-primary" data-bs-dismiss="modal">Aceptar</button></div>
-</div></div></div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:inline="javascript">
+      const $ = (id) => document.getElementById(id);
+      let delId = null,
+        allPrestamos = [],
+        page = 1,
+        perPage = 10;
+      const isAdmin = /*[[${#authorization.expression('hasAuthority(''ROLE_ADMIN'')')}]]*/ false;
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-<script th:inline="javascript">
-const $ = id => document.getElementById(id);
-let delId = null, allPrestamos = [], page = 1, perPage = 10;
-const isAdmin = /*[[${#authorization.expression('hasAuthority(''ROLE_ADMIN'')')}]]*/ false;
+      function msg(m, t = "Mensaje") {
+        $("msgModalTitle").textContent = t;
+        $("msgModalBody").innerHTML = m;
+        new bootstrap.Modal($("msgModal")).show();
+      }
+      function csrf() {
+        const t = document.querySelector('meta[name="_csrf"]'),
+          h = document.querySelector('meta[name="_csrf_header"]');
+        return t && h ? { token: t.content, header: h.content } : null;
+      }
+      async function fetch$(url, opts = {}) {
+        const c = csrf();
+        if (c && opts.method && opts.method !== "GET")
+          (opts.headers = opts.headers || {})[c.header] = c.token;
+        return fetch(url, opts);
+      }
+      function fmt(d) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+          const [y, m, day] = d.split("-");
+          return `${day}/${m}/${y}`;
+        }
+        return new Date(d).toLocaleDateString("es-ES");
+      }
+      function esc(s) {
+        return String(s || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
+      }
 
-function msg(m, t = 'Mensaje') { $('msgModalTitle').textContent = t; $('msgModalBody').innerHTML = m; new bootstrap.Modal($('msgModal')).show(); }
-function csrf() { const t = document.querySelector('meta[name="_csrf"]'), h = document.querySelector('meta[name="_csrf_header"]'); return t && h ? { token: t.content, header: h.content } : null; }
-async function fetch$(url, opts = {}) { const c = csrf(); if (c && opts.method && opts.method !== 'GET') (opts.headers = opts.headers || {})[c.header] = c.token; return fetch(url, opts); }
-function fmt(d) { if (/^\d{4}-\d{2}-\d{2}$/.test(d)) { const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`; } return new Date(d).toLocaleDateString('es-ES'); }
-function esc(s) { return String(s || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'); }
+      async function loadUsers() {
+        try {
+          const r = await fetch("/api/usuarios");
+          if (!r.ok) throw r;
+          const users = await r.json();
+          $("usuarioSelect").innerHTML =
+            `<option value="">Seleccione un usuario</option>` +
+            users
+              .map(
+                (u) =>
+                  `<option value="${u.id}">${u.nombreCompleto} (${u.identificacion})</option>`
+              )
+              .join("");
+        } catch (e) {
+          $("usuarioSelect").innerHTML =
+            '<option value="">Error cargando usuarios</option>';
+          console.error(e);
+          msg("Error al cargar usuarios", "Error");
+        }
+      }
 
-async function loadUsers() {
-  try { const r = await fetch('/api/usuarios'); if (!r.ok) throw r; const users = await r.json(); $('usuarioSelect').innerHTML = `<option value="">Seleccione un usuario</option>` + users.map(u => `<option value="${u.id}">${u.nombreCompleto} (${u.identificacion})</option>`).join(''); }
-  catch (e) { $('usuarioSelect').innerHTML = '<option value="">Error cargando usuarios</option>'; console.error(e); msg('Error al cargar usuarios', 'Error'); }
-}
+      async function loadBooks() {
+        try {
+          const r = await fetch("/api/libros/disponibles");
+          if (!r.ok) throw r;
+          const books = await r.json();
+          $("libroSelect").innerHTML =
+            `<option value="">Seleccione un libro</option>` +
+            books
+              .map(
+                (b) =>
+                  `<option value="${b.id}">${esc(b.titulo)} - ${esc(
+                    b.autor
+                  )}</option>`
+              )
+              .join("");
+        } catch (e) {
+          $("libroSelect").innerHTML =
+            '<option value="">Error cargando libros</option>';
+          console.error(e);
+          msg("Error al cargar libros disponibles", "Error");
+        }
+      }
 
-async function loadBooks() {
-  try { const r = await fetch('/api/libros/disponibles'); if (!r.ok) throw r; const books = await r.json(); $('libroSelect').innerHTML = `<option value="">Seleccione un libro</option>` + books.map(b => `<option value="${b.id}">${esc(b.titulo)} - ${esc(b.autor)}</option>`).join(''); }
-  catch (e) { $('libroSelect').innerHTML = '<option value="">Error cargando libros</option>'; console.error(e); msg('Error al cargar libros disponibles', 'Error'); }
-}
+      async function save(e) {
+        e.preventDefault();
+        const uid = $("usuarioSelect").value,
+          lid = $("libroSelect").value,
+          fecha = $("fechaDevolucion").value,
+          obs = $("observacion").value;
+        if (!uid || !lid || !fecha)
+          return msg("Complete todos los campos obligatorios.", "Advertencia");
+        try {
+          const body = new URLSearchParams({
+            usuarioId: uid,
+            libroId: lid,
+            fechaDevolucion: fecha,
+            observacion: obs,
+          });
+          const r = await fetch$("/api/prestamos/crear", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body,
+          });
+          if (r.ok) {
+            msg("Préstamo creado correctamente", "Éxito");
+            $("prestamoForm").reset();
+            loadBooks();
+            load();
+          } else {
+            const err = await r.json().catch(() => ({ error: "Error" }));
+            msg("Error: " + (err.error || "No se pudo crear"), "Error");
+          }
+        } catch (err) {
+          console.error(err);
+          msg("Error al crear el préstamo", "Error");
+        }
+      }
 
-async function save(e) {
-  e.preventDefault();
-  const uid = $('usuarioSelect').value, lid = $('libroSelect').value, fecha = $('fechaDevolucion').value, obs = $('observacion').value;
-  if (!uid || !lid || !fecha) return msg('Complete todos los campos obligatorios.', 'Advertencia');
-  try {
-    const body = new URLSearchParams({ usuarioId: uid, libroId: lid, fechaDevolucion: fecha, observacion: obs });
-    const r = await fetch$('/api/prestamos/crear', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
-    if (r.ok) { msg('Préstamo creado correctamente', 'Éxito'); $('prestamoForm').reset(); loadBooks(); load(); }
-    else { const err = await r.json().catch(() => ({ error: 'Error' })); msg('Error: ' + (err.error || 'No se pudo crear'), 'Error'); }
-  } catch (err) { console.error(err); msg('Error al crear el préstamo', 'Error'); }
-}
+      async function load() {
+        try {
+          const r = await fetch("/api/prestamos");
+          if (!r.ok) throw r;
+          allPrestamos = await r.json();
+          page = 1;
+          render();
+        } catch (e) {
+          console.error(e);
+          msg("Error al cargar préstamos", "Error");
+        }
+      }
 
-async function load() {
-  try {
-    const r = await fetch('/api/prestamos'); if (!r.ok) throw r; allPrestamos = await r.json(); page = 1; render();
-  } catch (e) { console.error(e); msg('Error al cargar préstamos', 'Error'); }
-}
+      function render() {
+        const start = (page - 1) * perPage,
+          end = start + perPage,
+          pageData = allPrestamos.slice(start, end);
+        const total = allPrestamos.length,
+          totalPages = Math.ceil(total / perPage);
+        const rows = pageData
+          .map((p) => {
+            const d = Number(p.diasRestantes),
+              cls =
+                d < 0
+                  ? "text-danger"
+                  : d <= 3
+                  ? "text-warning"
+                  : "text-success",
+              txt = d < 0 ? "Vencido" : d <= 3 ? "Por vencer" : "Vigente";
+            return `<tr><td>${p.id}</td><td>${esc(
+              p.usuario?.nombreCompleto
+            )}</td><td>${esc(p.libro?.titulo)}</td><td>${fmt(
+              p.fechaPrestamo
+            )}</td><td>${fmt(
+              p.fechaDevolucion
+            )}</td><td><span class="${cls}">${d} días</span></td><td><span class="badge ${cls.replace(
+              "text-",
+              "bg-"
+            )}">${txt}</span></td><td>${esc(p.observacion) || "-"}</td><td>${
+              isAdmin
+                ? `<button class="btn btn-danger btn-sm" onclick="del(${p.id})" title="Eliminar"><i class="bi bi-trash"></i></button>`
+                : "-"
+            }</td></tr>`;
+          })
+          .join("");
+        $("prestamosTableBody").innerHTML =
+          rows ||
+          '<tr><td colspan="9" class="text-center py-3">No hay préstamos</td></tr>';
+        $("pageInfo").textContent = total
+          ? `Mostrando ${start + 1}-${Math.min(end, total)} de ${total}`
+          : "Mostrando 0 de 0";
+        $("pageNum").textContent = `Página ${page} de ${totalPages || 1}`;
+        $("prevBtn").disabled = page <= 1;
+        $("nextBtn").disabled = page >= totalPages;
+      }
 
-function render() {
-  const start = (page - 1) * perPage, end = start + perPage, pageData = allPrestamos.slice(start, end);
-  const total = allPrestamos.length, totalPages = Math.ceil(total / perPage);
-  const rows = pageData.map(p => {
-    const d = Number(p.diasRestantes), cls = d < 0 ? 'text-danger' : d <= 3 ? 'text-warning' : 'text-success', txt = d < 0 ? 'Vencido' : d <= 3 ? 'Por vencer' : 'Vigente';
-    return `<tr><td>${p.id}</td><td>${esc(p.usuario?.nombreCompleto)}</td><td>${esc(p.libro?.titulo)}</td><td>${fmt(p.fechaPrestamo)}</td><td>${fmt(p.fechaDevolucion)}</td><td><span class="${cls}">${d} días</span></td><td><span class="badge ${cls.replace('text-', 'bg-')}">${txt}</span></td><td>${esc(p.observacion) || '-'}</td><td>${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="del(${p.id})" title="Eliminar"><i class="bi bi-trash"></i></button>` : '-'}</td></tr>`;
-  }).join('');
-  $('prestamosTableBody').innerHTML = rows || '<tr><td colspan="9" class="text-center py-3">No hay préstamos</td></tr>';
-  $('pageInfo').textContent = total ? `Mostrando ${start + 1}-${Math.min(end, total)} de ${total}` : 'Mostrando 0 de 0';
-  $('pageNum').textContent = `Página ${page} de ${totalPages || 1}`;
-  $('prevBtn').disabled = page <= 1; $('nextBtn').disabled = page >= totalPages;
-}
+      function del(id) {
+        delId = id;
+        new bootstrap.Modal($("deleteModal")).show();
+      }
 
-function del(id) { delId = id; new bootstrap.Modal($('deleteModal')).show(); }
+      async function confirmDel() {
+        if (!delId) return;
+        try {
+          const r = await fetch$(`/api/prestamos/${delId}`, {
+            method: "DELETE",
+          });
+          if (r.ok) {
+            msg("Préstamo eliminado correctamente", "Éxito");
+            load();
+            loadBooks();
+          } else msg("Error al eliminar préstamo", "Error");
+        } catch (e) {
+          console.error(e);
+          msg("Error al eliminar préstamo", "Error");
+        }
+        delId = null;
+        bootstrap.Modal.getInstance($("deleteModal")).hide();
+      }
 
-async function confirmDel() {
-  if (!delId) return;
-  try { const r = await fetch$(`/api/prestamos/${delId}`, { method: 'DELETE' }); if (r.ok) { msg('Préstamo eliminado correctamente', 'Éxito'); load(); loadBooks(); } else msg('Error al eliminar préstamo', 'Error'); }
-  catch (e) { console.error(e); msg('Error al eliminar préstamo', 'Error'); }
-  delId = null; bootstrap.Modal.getInstance($('deleteModal')).hide();
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  $('fechaDevolucion').min = new Date().toISOString().split('T')[0];
-  loadUsers(); loadBooks(); load();
-  $('prestamoForm').addEventListener('submit', save);
-  $('btnRefresh').addEventListener('click', () => { loadBooks(); load(); });
-  $('confirmDelete').addEventListener('click', confirmDel);
-  $('prevBtn').addEventListener('click', () => { if (page > 1) { page--; render(); } });
-  $('nextBtn').addEventListener('click', () => { if (page < Math.ceil(allPrestamos.length / perPage)) { page++; render(); } });
-});
-</script>
-</body>
+      document.addEventListener("DOMContentLoaded", () => {
+        $("fechaDevolucion").min = new Date().toISOString().split("T")[0];
+        loadUsers();
+        loadBooks();
+        load();
+        $("prestamoForm").addEventListener("submit", save);
+        $("btnRefresh").addEventListener("click", () => {
+          loadBooks();
+          load();
+        });
+        $("confirmDelete").addEventListener("click", confirmDel);
+        $("prevBtn").addEventListener("click", () => {
+          if (page > 1) {
+            page--;
+            render();
+          }
+        });
+        $("nextBtn").addEventListener("click", () => {
+          if (page < Math.ceil(allPrestamos.length / perPage)) {
+            page++;
+            render();
+          }
+        });
+      });
+    </script>
+  </body>
 </html>
